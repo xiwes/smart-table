@@ -33,6 +33,15 @@ export function initTable(settings, onAction) {
         onAction(e.submitter);
     });
 
+    // ловим клики по любым элементам с data-action (например, кнопки страниц)
+  root.container.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (btn) {
+      e.preventDefault();
+      onAction(btn);
+    }
+  });
+
     const render = (data) => {
         // Преобразуем данные в строки по rowTemplate
         const nextRows = data.map(item => {
