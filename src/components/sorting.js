@@ -1,32 +1,32 @@
-import {sortCollection, sortMap} from "../lib/sort.js";
+import {sortMap} from "../lib/sort.js"; // sortCollection больше не нужен
 
 export function initSorting(columns) {
-    return (data, state, action) => {
+    return (query, state, action) => {
         let field = null;
-        let order = null;
+        let order = 'none';
 
-        if (action && action.name === 'sort') {
-            // Запомнить выбранный режим сортировки
-            action.dataset.value = sortMap[action.dataset.value];
-            field = action.dataset.field;
-            order = action.dataset.value;
+        const toggle = (cur) => (cur === 'asc' ? 'desc' : (cur === 'desc' ? 'none' : 'asc'));
 
-            // Сбросить сортировки остальных колонок
-            columns.forEach(column => {
-                if (column !== action && column.dataset.field !== action.dataset.field) {
-                    column.dataset.value = 'none';
-                }
-            });
+        if (action && action.name === 'sort' && action.dataset) {
+            const column = action;
+            const next = toggle(column.dataset.value || 'none');
+            // сбросим у остальных
+            columns.forEach(c => (c.dataset.value = 'none'));
+            column.dataset.value = next;
+            field = column.dataset.field;
+            order = next;
         } else {
-            // Получить выбранный режим сортировки
+            // восстановление текущего состояния сортировки из DOM
             columns.forEach(column => {
-                if (column.dataset.value !== 'none') {
+                const val = column.dataset.value || 'none';
+                if (val !== 'none') {
                     field = column.dataset.field;
-                    order = column.dataset.value;
+                    order = val;
                 }
             });
         }
 
-        return sortCollection(data, field, order);
-    }
+        const sort = (field && order !== 'none') ? `${field}:${order}` : null;
+        return sort ? Object.assign({}, query, { sort }) : query;
+    };
 }

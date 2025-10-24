@@ -1,38 +1,63 @@
 import {getPages} from "../lib/utils.js";
 
-export const initPagination = ({pages, fromRow, toRow, totalRows}, createPage) => {
-    // Подготовим шаблон и очистим контейнер страниц
-    const pageTemplate = pages.firstElementChild.cloneNode(true);
-    pages.firstElementChild.remove();
+let pageCount;
 
-    return (data, state, action) => {
-        // Посчитать количество страниц, объявить переменные и константы
-        const rowsPerPage = state.rowsPerPage;
-        const pageCount = Math.ceil(data.length / rowsPerPage) || 1;
-        let page = state.page;
+export function initPagination(elements) {
+    const {
+      pages,
+      previousPage: prev,
+      nextPage: next,
+      firstPage: first,
+      lastPage: last,
+      rowsPerPage
+    } = elements;
 
-        // Обработать действия
-        if (action) switch (action.name) {
-            case 'prev': page = Math.max(1, page - 1); break;
-            case 'next': page = Math.min(pageCount, page + 1); break;
-            case 'first': page = 1; break;
-            case 'last': page = pageCount; break;
+    const applyPagination = (query, state, action) => {
+        const limit = Number(state.rowsPerPage) || 10;
+        let page = Number(state.page) || 1;
+
+        if (action && action.name) {
+            switch (action.name) {
+                case 'prev': page = Math.max(1, page - 1); break;
+                case 'next': page = page + 1; break; // ограничим после получения total
+                case 'first': page = 1; break;
+                case 'last': page = pageCount || 1; break;
+                case 'goto': {
+                    const value = Number(action.dataset?.page);
+                    if (!Number.isNaN(value)) page = value;
+                    break;
+                }
+            }
         }
 
-        // Видимые страницы и вывод
-        const visiblePages = getPages(page, pageCount, 5);
-        pages.replaceChildren(...visiblePages.map(pageNumber => {
-            const el = pageTemplate.cloneNode(true);
-            return createPage(el, pageNumber, pageNumber === page);
+        return Object.assign({}, query, { limit, page });
+    };
+
+    const updatePagination = (total, { page, limit }) => {
+        pageCount = Math.max(1, Math.ceil(total / limit));
+
+        page = Math.min(Math.max(1, Number(page) || 1), pageCount);
+
+        const visible = getPages(page, pageCount, 5);
+        pages.replaceChildren(...visible.map(num => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.dataset.action = 'goto';
+            btn.dataset.page = String(num);
+            btn.textContent = String(num);
+            if (num === page) btn.disabled = true;
+            return btn;
         }));
 
-        // Статус пагинации
-        fromRow.textContent = (page - 1) * rowsPerPage + 1;
-        toRow.textContent = Math.min(page * rowsPerPage, data.length);
-        totalRows.textContent = data.length;
+        if (prev) prev.disabled = page <= 1;
+        if (first) first.disabled = page <= 1;
+        if (next) next.disabled = page >= pageCount;
+        if (last) last.disabled = page >= pageCount;
+        if (rowsPerPage && 'value' in rowsPerPage) rowsPerPage.value = String(limit);
+    };
 
-        // Вернуть срез данных
-        const skip = (page - 1) * rowsPerPage;
-        return data.slice(skip, skip + rowsPerPage);
-    }
+    return {
+        updatePagination,
+        applyPagination
+    };
 }
